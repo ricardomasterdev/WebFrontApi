@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Dashboard - Biblioteca</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="js/auth.js"></script>
+  <script src="js/auth-check.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      overflow-x: hidden;
+    }
+  
+    .sidebar {
+      height: 100vh;
+      width: 220px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #343a40;
+      padding-top: 20px;
+      z-index: 1050;
+      transition: transform 0.3s ease-in-out;
+    }
+  
+    .sidebar a {
+      padding: 10px 20px;
+      display: block;
+      color: #fff;
+      text-decoration: none;
+    }
+  
+    .sidebar a:hover {
+      background-color: #495057;
+    }
+  
+    .content {
+      margin-left: 220px;
+      padding: 30px;
+    }
+  
+    .mobile-toggle {
+      display: none;
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1100;
+      background-color: #343a40;
+      border: none;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 4px;
+    }
+  
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-220px);
+        z-index: 2000;
+      }
+  
+      .sidebar.active {
+        transform: translateX(0);
+      }
+  
+      .content {
+        margin-left: 0;
+        padding: 20px;
+      }
+  
+      .mobile-toggle {
+        display: block;
+      }
+  
+      /* ✅ Centralizar o nome do usuário no celular */
+      #info-usuario {
+        text-align: center;
+      }
+    }
+  </style>
+  
+</head>
+
+<body>
+  <button class="mobile-toggle">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <!-- Menu Completo -->
+  <div class="sidebar">
+    <div class="text-center mb-4">
+      <img src="logoab.png" alt="Logo Biblioteca" style="max-width: 150px; height: auto;" />
+    </div>
+    <!-- Use a função redirecionarPagina em todos os links -->
+    <a href="#" onclick="event.preventDefault(); redirecionarPagina('dashboard.html','');">
+      <i class="bi bi-speedometer2 me-2"></i> Dashboard
+    </a>
+    <a href="#" onclick="event.preventDefault(); redirecionarPagina('livros.html','📚 Livros');">
+      <i class="bi bi-book me-2"></i> Livros
+    </a>
+    <a href="#" onclick="event.preventDefault(); redirecionarPagina('usuarios.html','👤 Usuários');">
+      <i class="bi bi-people me-2"></i> Usuários
+    </a>
+    <a href="#" onclick="event.preventDefault(); redirecionarPagina('locacoes.html','🔄 Locações');">
+      <i class="bi bi-arrow-repeat me-2"></i> Locações
+    </a>
+    <div class="dropdown px-3">
+      <a href="#" class="dropdown-toggle text-white text-decoration-none" data-bs-toggle="dropdown">
+        <i class="bi bi-bar-chart-line me-2"></i> Relatórios
+      </a>
+      <ul class="dropdown-menu dropdown-menu-dark">
+        <li>
+          <a class="dropdown-item" href="#" onclick="event.preventDefault(); redirecionarPagina('maislocados.html','Livros Mais Locados');">
+            📚 Livros Mais Locados
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="#" onclick="event.preventDefault(); redirecionarPagina('clienteemprestimo.html','Usuários com Mais Empréstimos');">
+            👤 Usuários com Mais Empréstimos
+          </a>
+        </li>
+      </ul>
+    </div>
+    <a href="#" onclick="event.preventDefault(); logout();">
+      <i class="bi bi-box-arrow-right me-2"></i> Sair
+    </a>
+  </div>
+
+  <div class="content">
+    <h2 id="titulo-pagina"></h2>
+    <p id="info-usuario" class="text-muted mb-4"></p>
+    <div id="conteudo">Carregando...</div>
+  </div>
+
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmModalLabel">Confirmar Exclusão</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmModalMessage">Você realmente deseja excluir este item?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="modalConfirmBtn">Excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Função que redireciona para entrada.html, enviando os parâmetros de página, título e um valor de cache busting
+    function redirecionarPagina(pagina, titulo) {
+      window.location.href = "entrada.html?pagina=" + encodeURIComponent(pagina) +
+                             "&titulo=" + encodeURIComponent(titulo) +
+                             "&v=" + new Date().getTime();
+    }
+
+    // Função que carrega uma página HTML com cache busting e reinicializa os scripts dinâmicos
+    function carregarPagina(arquivo, titulo) {
+      // Atualiza o título da página
+      document.getElementById("titulo-pagina").textContent = titulo;
+
+      // Solicita o arquivo HTML com um parâmetro de cache busting
+      fetch(arquivo + '?v=' + Date.now())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Erro ao carregar a página.");
+          }
+          return response.text();
+        })
+        .then(html => {
+          // Insere o conteúdo HTML no container
+          document.getElementById("conteudo").innerHTML = html;
+
+          // Remove quaisquer scripts dinâmicos que já foram carregados anteriormente
+          document.querySelectorAll("script.dynamic-script").forEach(script => script.remove());
+
+          // Define o caminho do script a ser carregado com base na página solicitada
+          let scriptSrc = "";
+          if (arquivo === "dashboard.html") {
+            scriptSrc = "js/dashboard.js";
+          } else if (arquivo === "livros.html") {
+            scriptSrc = "js/livros.js";
+          } else if (arquivo === "usuarios.html") {
+            scriptSrc = "js/usuarios.js";
+          } else if (arquivo === "locacoes.html") {
+            scriptSrc = "js/locacoes.js";
+          } else if (arquivo === "maislocados.html") {
+            scriptSrc = "js/relatorio.js";
+          } else if (arquivo === "clienteemprestimo.html") {
+            scriptSrc = "js/clienteemprestimo.js";
+          }
+
+          // Se houver script correspondente, cria e insere-o dinamicamente
+          if (scriptSrc) {
+            const script = document.createElement("script");
+            script.src = scriptSrc + "?v=" + Date.now(); // Cache busting para o arquivo JS
+            script.classList.add("dynamic-script");      // Marca para futura remoção
+            script.onload = () => {
+              // Chama a função de inicialização específica para cada página, se existir
+              if (arquivo === "dashboard.html" && typeof inicializarGraficoStatusLocacoes === "function") {
+                inicializarGraficoStatusLocacoes();
+              } else if (arquivo === "livros.html" && typeof carregarLivros === "function") {
+                carregarLivros();
+              } else if (arquivo === "usuarios.html" && typeof carregarUsuarios === "function") {
+                carregarUsuarios();
+              } else if (arquivo === "locacoes.html" && typeof carregarLocacoes === "function") {
+                carregarLocacoes();
+              } else if (arquivo === "maislocados.html" && typeof carregarRelatorio === "function") {
+                carregarRelatorio();
+              } else if (arquivo === "clienteemprestimo.html" && typeof carregarRelatorioClientes === "function") {
+                carregarRelatorioClientes();
+              }
+            };
+            document.body.appendChild(script);
+          }
+
+          // Se estiver em dispositivo móvel, fecha o menu lateral
+          if (window.innerWidth < 768) {
+            document.querySelector(".sidebar").classList.remove("active");
+          }
+        })
+        .catch(error => {
+          document.getElementById("conteudo").innerHTML =
+            `<div class="alert alert-danger">Erro: ${error.message}</div>`;
+        });
+    }
+
+    // Função para recarregar o conteúdo (chamada via AJAX)
+    function recarregarConteudo(arquivo, titulo) {
+      document.getElementById("conteudo").innerHTML = "Carregando...";
+      carregarPagina(arquivo, titulo);
+    }
+
+    // Inicializa o sistema após o carregamento do DOM
+    window.addEventListener("DOMContentLoaded", () => {
+      const usuario = getUsuarioAutenticado();
+      if (!usuario || usuario.perfil !== 0) {
+        alert("Acesso restrito ao perfil administrador.");
+        localStorage.removeItem("token");
+        window.location.href = "index.html";
+        return;
+      }
+
+      const perfilLabel = usuario.perfil === 0 ? "Administrador" : "Usuário Padrão";
+      document.getElementById("info-usuario").textContent = `👤 Logado como: ${usuario.nome} (${perfilLabel})`;
+
+      // Verifica se há um parâmetro "pagina" na URL
+      const params = new URLSearchParams(window.location.search);
+      const pagina = params.get("pagina");
+      const titulo = params.get("titulo") || "";
+
+      if (pagina) {
+        // Aguarda 1 segundo antes de carregar a página desejada
+        setTimeout(() => {
+          recarregarConteudo(pagina, titulo);
+        }, 1000);
+      } else {
+        // Se não houver parâmetro, carrega o dashboard
+        recarregarConteudo("dashboard.html", "");
+      }
+    });
+
+    // Toggle para o menu lateral em dispositivos móveis
+    document.querySelector(".mobile-toggle").addEventListener("click", function () {
+      document.querySelector(".sidebar").classList.toggle("active");
+    });
+
+    // Verifica se a página foi recarregada a partir do cache do navegador e redireciona se necessário
+    window.addEventListener("pageshow", function (event) {
+      if (event.persisted || window.performance.navigation.type === 2) {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "index.html";
+        }
+      }
+    });
+
+    // Função de logout
+    function logout() {
+      localStorage.removeItem("token");
+      window.location.href = "index.html";
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
